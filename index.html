@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Stickman Swing</title>
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@0.3.0/dist/index.min.js"></script>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #f3f5f7;
+        width: 100%;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Ubuntu,
+          Cantarell,
+          Noto Sans,
+          Arial,
+          "Apple Color Emoji",
+          "Segoe UI Emoji";
+      }
+      #game-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 420px;
+        aspect-ratio: 2 / 3; /* 400x600 logical */
+        background: #e9eef2;
+        overflow: hidden;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 14px;
+        background: rgba(0, 0, 0, 0);
+        pointer-events: none;
+        color: #0e1116;
+        text-align: center;
+        padding: 16px;
+      }
+      .panel {
+        pointer-events: auto;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+        padding: 16px 18px;
+      }
+      .title {
+        font-weight: 700;
+        font-size: 22px;
+      }
+      .subtitle {
+        font-size: 14px;
+        opacity: 0.8;
+      }
+      .btn {
+        pointer-events: auto;
+        user-select: none;
+        background: #111;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 18px;
+        font-size: 16px;
+        min-width: 160px;
+      }
+      .hint {
+        font-size: 13px;
+        opacity: 0.7;
+      }
+      .hud {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+      }
+      .chip {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 14px;
+        color: #0e1116;
+      }
+    </style>
+
+    <script id="game-config" type="application/json">
+      {
+        "colors": {
+          "background": "#e9eef2",
+          "ground": "#d5dde5",
+          "path": "#c7d2dc",
+          "player": "#121417",
+          "rope": "#121417",
+          "hook": "#2f3a44",
+          "uiText": "#0e1116"
+        },
+        "player": {
+          "radius": 10,
+          "forwardSpeed": 2.1,
+          "maxRopeLength": 170,
+          "swingDamp": 0.001
+        },
+        "gameplay": {
+          "gravity": 0.05,
+          "airDrag": 1,
+          "groundY": 560,
+          "cameraFollow": 0.08
+        },
+        "hooks": {
+          "minGap": 140,
+          "maxGap": 200,
+          "minHeight": 260,
+          "maxHeight": 360
+        },
+        "ui": {
+          "showGrid": false
+        },
+        "_meta": {
+          "colors.background": {
+            "type": "color",
+            "label": "Background"
+          },
+          "colors.ground": {
+            "type": "color",
+            "label": "Ground"
+          },
+          "colors.path": {
+            "type": "color",
+            "label": "Path"
+          },
+          "colors.player": {
+            "type": "color",
+            "label": "Player"
+          },
+          "colors.rope": {
+            "type": "color",
+            "label": "Rope"
+          },
+          "colors.hook": {
+            "type": "color",
+            "label": "Hook"
+          },
+          "colors.uiText": {
+            "type": "color",
+            "label": "UI Text"
+          },
+          "player.radius": {
+            "type": "number",
+            "label": "Player Radius",
+            "min": 6,
+            "max": 20,
+            "step": 1
+          },
+          "player.forwardSpeed": {
+            "type": "number",
+            "label": "Forward Speed",
+            "min": 1.2,
+            "max": 4,
+            "step": 0.1
+          },
+          "player.maxRopeLength": {
+            "type": "number",
+            "label": "Max Rope Length",
+            "min": 80,
+            "max": 200,
+            "step": 1
+          },
+          "player.swingDamp": {
+            "type": "number",
+            "label": "Swing Damping",
+            "min": 0,
+            "max": 0.02,
+            "step": 0.001
+          },
+          "gameplay.gravity": {
+            "type": "number",
+            "label": "Gravity",
+            "min": 0.1,
+            "max": 1,
+            "step": 0.01
+          },
+          "gameplay.airDrag": {
+            "type": "number",
+            "label": "Air Drag",
+            "min": 0.95,
+            "max": 1,
+            "step": 0.001
+          },
+          "gameplay.groundY": {
+            "type": "number",
+            "label": "Ground Y",
+            "min": 460,
+            "max": 560,
+            "step": 1
+          },
+          "gameplay.cameraFollow": {
+            "type": "number",
+            "label": "Camera Follow",
+            "min": 0.02,
+            "max": 0.2,
+            "step": 0.01
+          },
+          "hooks.minGap": {
+            "type": "number",
+            "label": "Hook Min Gap",
+            "min": 80,
+            "max": 220,
+            "step": 5
+          },
+          "hooks.maxGap": {
+            "type": "number",
+            "label": "Hook Max Gap",
+            "min": 120,
+            "max": 260,
+            "step": 5
+          },
+          "hooks.minHeight": {
+            "type": "number",
+            "label": "Hook Min Height",
+            "min": 120,
+            "max": 320,
+            "step": 5
+          },
+          "hooks.maxHeight": {
+            "type": "number",
+            "label": "Hook Max Height",
+            "min": 140,
+            "max": 360,
+            "step": 5
+          },
+          "ui.showGrid": {
+            "type": "boolean",
+            "label": "Show Grid"
+          }
+        }
+      }
+    </script>
+
+    <script id="game-assets" type="application/json">
+      {
+        "_meta": {}
+      }
+    </script>
+  </head>
+  <body>
+    <div id="game-wrap">
+      <canvas id="canvas" width="400" height="600"></canvas>
+      <div class="hud">
+        <div class="chip" id="scoreChip">0 m</div>
+        <div class="chip" id="statusChip">Tap & hold to swing</div>
+      </div>
+      <div class="overlay" id="startOverlay">
+        <div class="panel">
+          <div class="title">Stickman Swing</div>
+          <div class="subtitle">Tap and hold to latch onto hook points. Release to fly. Go as far as you can.</div>
+        </div>
+        <button class="btn" id="startBtn">Tap to Start</button>
+        <div class="hint">Hold: attach rope • Release: detach</div>
+      </div>
+    </div>
+
+    <script>
+      let CONFIG = {};
+      function initConfig() {
+        try {
+          CONFIG = JSON.parse(document.getElementById("game-config").textContent);
+        } catch (e) {
+          CONFIG = {};
+        }
+      }
+      initConfig();
+      window.onConfigUpdate = (cfg) => {
+        CONFIG = cfg;
+        const wrap = document.getElementById("game-wrap");
+        wrap.style.background = CONFIG.colors.background;
+      };
+
+      // No audio in this game, but keep Farcade mute hook
+      let isMuted = false;
+
+      // Global asset structure if needed later
+      let ASSETS = {};
+      function initAssets() {
+        try {
+          ASSETS = JSON.parse(document.getElementById("game-assets").textContent) || {};
+        } catch (e) {
+          ASSETS = {};
+        }
+        window.addEventListener("message", (event) => {
+          if (event.data && event.data.type === "UPDATE_ASSETS") {
+            ASSETS = event.data.assets;
+          }
+        });
+      }
+      initAssets();
+
+      let canvas, ctx;
+      let W = 400,
+        H = 600; // logical size
+      let gameStarted = false;
+      let gameOver = false;
+      let distance = 0; // meters
+
+      // Early-game assist tuning (ramps down over distance)
+      const ASSIST = {
+        maxBoostLen: 0.35, // up to +35% rope reach early
+        backAttachExtra: 60, // allow hooks a bit further behind early
+        gravityEase: 0.3, // up to -30% gravity early
+        speedEase: 0.15, // up to -15% forward base speed early
+        swingDampEase: 0.5, // reduce damping by up to 50% early (less momentum loss)
+        untilMeters: 80, // assistance fades out by ~80 m
+        easyHooks: 5, // first N hooks are easier (spacing/height)
+      };
+
+      function assistT() {
+        // 1 at start, 0 after ASSIST.untilMeters
+        return clamp(1 - distance / ASSIST.untilMeters, 0, 1);
+      }
+
+      // Swing assist control (horizontal force while attached and holding)
+      const SWING_CTRL = {
+        smooth: 0.24, // slightly quicker response
+        accel: 0.065, // increased swing force from drag/scroll
+        accelMax: 0.11, // allow a bit more peak influence
+      };
+
+      // Camera and world
+      let cameraX = 0;
+      let worldHooks = [];
+
+      // Player state
+      const player = {
+        x: 40,
+        y: 300,
+        vx: 0,
+        vy: 0,
+        radius: CONFIG.player.radius,
+        attached: false,
+        hookIndex: -1,
+        ropeLen: CONFIG.player.maxRopeLength,
+      };
+
+      const input = { down: false, drag: 0, dragSmooth: 0, lastX: null };
+
+      function resetGame() {
+        gameOver = false;
+        distance = 0;
+        player.x = 40;
+        player.y = 300;
+        player.vx = CONFIG.player.forwardSpeed;
+        player.vy = 0;
+        player.attached = false;
+        player.hookIndex = -1;
+        player.ropeLen = CONFIG.player.maxRopeLength;
+        cameraX = 0;
+        worldHooks.length = 0;
+        // seed a few hooks ahead
+        ensureHooksAhead(600);
+
+        // Safe Start — Option 1: Initial Auto-Hook
+        // Automatically attach to the nearest reachable hook ahead so the player doesn't fall instantly.
+        (function autoAttachFirstHook() {
+          const maxLen = CONFIG.player.maxRopeLength;
+          let best = -1,
+            bestDist2 = Infinity;
+          for (let i = 0; i < worldHooks.length; i++) {
+            const h = worldHooks[i];
+            const dx = h.x - player.x;
+            const dy = h.y - player.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 <= maxLen * maxLen && h.x >= player.x - 40) {
+              if (d2 < bestDist2) {
+                bestDist2 = d2;
+                best = i;
+              }
+            }
+            if (h.x - player.x > 400) break; // early stop
+          }
+          if (best !== -1) {
+            player.attached = true;
+            player.hookIndex = best;
+            const h = worldHooks[best];
+            const dx = player.x - h.x;
+            const dy = player.y - h.y;
+            player.ropeLen = Math.min(Math.hypot(dx, dy), maxLen);
+          }
+        })();
+
+        updateUI();
+      }
+
+      function startGame() {
+        document.getElementById("startOverlay").style.display = "none";
+        gameStarted = true;
+        resetGame();
+        requestAnimationFrame(loop);
+      }
+
+      function endGame() {
+        if (gameOver) return;
+        gameOver = true;
+        gameStarted = false;
+        // Removed custom game over overlay; report score to Farcade only
+        window.FarcadeSDK.singlePlayer.actions.gameOver({ score: Math.floor(distance) });
+      }
+
+      function updateUI() {
+        document.getElementById("scoreChip").textContent = Math.floor(distance) + " m";
+      }
+
+      function setup() {
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        W = canvas.width;
+        H = canvas.height;
+
+        // Colors from config
+        document.getElementById("game-wrap").style.background = CONFIG.colors.background;
+
+        // Input
+        const wrap = document.getElementById("game-wrap");
+
+        wrap.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          if (!gameStarted) return;
+          input.down = true;
+          input.lastX = e.clientX;
+        });
+        wrap.addEventListener("pointermove", (e) => {
+          if (!gameStarted || !input.down) return;
+          const x = e.clientX;
+          if (input.lastX == null) input.lastX = x;
+          const dx = x - input.lastX;
+          input.lastX = x;
+          input.drag = clamp(dx * 0.004, -1, 1); // subtle horizontal control value
+        });
+        wrap.addEventListener("pointerup", (e) => {
+          e.preventDefault();
+          input.down = false;
+          input.drag = 0;
+          input.lastX = null;
+          detachRope();
+        });
+        wrap.addEventListener("pointerleave", () => {
+          input.down = false;
+          input.drag = 0;
+          input.lastX = null;
+          detachRope();
+        });
+        // Desktop/trackpad support: horizontal wheel scroll assists swing while holding
+        // Desktop/trackpad support: scrolling left/right adds swing force while attached
+        wrap.addEventListener(
+          "wheel",
+          (e) => {
+            if (!gameStarted) return;
+            // Allow swing via wheel only when attached (caught/hanging)
+            if (!player.attached) return;
+            // Prevent horizontal scroll from bubbling page
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) e.preventDefault();
+            // Prefer horizontal wheel; fall back to vertical (up=left, down=right)
+            const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : -e.deltaY;
+            // Map scroll to a brief drag impulse; will be smoothed and decayed in physics
+            input.drag = clamp(delta * 0.0025, -1, 1);
+          },
+          { passive: false },
+        );
+
+        document.getElementById("startBtn").addEventListener("click", () => {
+          if (!gameStarted) startGame();
+        });
+
+        // Farcade events
+        window.FarcadeSDK.on("play_again", () => {
+          resetGame();
+          startGame();
+        });
+        window.FarcadeSDK.on("toggle_mute", (data) => {
+          isMuted = data.isMuted;
+        });
+
+        // initial static frame
+        drawFrame();
+      }
+
+      // Hook generation: fixed above path, spaced, always reachable
+      function ensureHooksAhead(rangePx) {
+        const groundY = CONFIG.gameplay.groundY;
+        const minGap = CONFIG.hooks.minGap;
+        const maxGap = CONFIG.hooks.maxGap;
+        const minH = CONFIG.hooks.minHeight;
+        const maxH = CONFIG.hooks.maxHeight;
+
+        let lastX = worldHooks.length ? worldHooks[worldHooks.length - 1].x : 80;
+        while (lastX < cameraX + W + rangePx) {
+          // Make first few hooks closer and at friendlier heights
+          const easeCountT = clamp(1 - worldHooks.length / ASSIST.easyHooks, 0, 1); // 1 for first hooks → 0 after N hooks
+          const gapScale = 1 - 0.25 * easeCountT; // up to -25% gap early
+          const gMin = Math.max(60, Math.floor(minGap * gapScale));
+          const gMax = Math.max(gMin + 10, Math.floor(maxGap * gapScale));
+          const gap = rand(gMin, gMax);
+          lastX += gap;
+
+          // Height: bias to middle of range early for easier reach
+          const rMaxEarly = (minH + maxH) * 0.5; // midpoint
+          const rMax = lerp(rMaxEarly, maxH, 1 - easeCountT);
+          const height = rand(minH, rMax);
+          const hookY = clamp(groundY - height, 80, groundY - 60);
+          worldHooks.push({ x: lastX, y: hookY });
+        }
+      }
+
+      // Attach to nearest reachable hook when input is held
+      function tryAttach() {
+        if (player.attached) return;
+        const t = assistT();
+        const maxLen = CONFIG.player.maxRopeLength * (1 + ASSIST.maxBoostLen * t);
+        const behindAllowance = 40 + ASSIST.backAttachExtra * t;
+
+        let best = -1,
+          bestDist2 = Infinity;
+        for (let i = 0; i < worldHooks.length; i++) {
+          const hx = worldHooks[i].x;
+          const hy = worldHooks[i].y;
+          const dx = hx - player.x;
+          const dy = hy - player.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= maxLen * maxLen) {
+            if (hx >= player.x - behindAllowance) {
+              if (d2 < bestDist2) {
+                bestDist2 = d2;
+                best = i;
+              }
+            }
+          }
+        }
+
+        // Fallback: if nothing found and still early, do a softer search without ahead bias
+        if (best === -1 && t > 0.2) {
+          for (let i = 0; i < worldHooks.length; i++) {
+            const hx = worldHooks[i].x;
+            const hy = worldHooks[i].y;
+            const dx = hx - player.x;
+            const dy = hy - player.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 <= maxLen * 1.1 * (maxLen * 1.1)) {
+              if (d2 < bestDist2) {
+                bestDist2 = d2;
+                best = i;
+              }
+            }
+          }
+        }
+
+        if (best !== -1) {
+          player.attached = true;
+          player.hookIndex = best;
+          const h = worldHooks[best];
+          const dx = player.x - h.x;
+          const dy = player.y - h.y;
+          player.ropeLen = Math.min(Math.hypot(dx, dy), CONFIG.player.maxRopeLength);
+        }
+      }
+
+      function detachRope() {
+        player.attached = false;
+        player.hookIndex = -1;
+      }
+
+      function physics(dt) {
+        // Assistance factor (1 at start → 0 after ASSIST.untilMeters)
+        const t = assistT();
+
+        // Smooth horizontal drag input
+        input.dragSmooth += (input.drag - input.dragSmooth) * SWING_CTRL.smooth;
+
+        // Auto forward base speed (slightly slower early)
+        const baseFwd = CONFIG.player.forwardSpeed * (1 - ASSIST.speedEase * t);
+
+        // Gravity (may be reduced early per existing assist)
+        const g = CONFIG.gameplay.gravity * (1 - ASSIST.gravityEase * t);
+        player.vy += g * dt;
+
+        // If attached, enforce rope constraint and apply swing dynamics
+        if (player.attached && worldHooks[player.hookIndex]) {
+          const h = worldHooks[player.hookIndex];
+          // Predict position with gravity first
+          player.x += player.vx * dt;
+          player.y += player.vy * dt;
+
+          // Vector from hook to player
+          const rx = player.x - h.x;
+          const ry = player.y - h.y;
+          const r = Math.hypot(rx, ry) || 0.0001;
+          const maxR = Math.min(player.ropeLen, CONFIG.player.maxRopeLength);
+          // Constrain to rope length (no stretch beyond maxR)
+          if (r > maxR) {
+            const nx = rx / r,
+              ny = ry / r;
+            // Project velocity to tangential direction by removing radial component
+            const vDotN = player.vx * nx + player.vy * ny;
+            // Move player back to circle
+            player.x = h.x + nx * maxR;
+            player.y = h.y + ny * maxR;
+            // Remove radial velocity (no moving away from hook), keep tangential for swing
+            player.vx -= vDotN * nx;
+            player.vy -= vDotN * ny;
+            // Tangential damping — reduced early so momentum is preserved
+            const effectiveDamp = CONFIG.player.swingDamp * (1 - ASSIST.swingDampEase * t);
+            const damp = 1 - effectiveDamp;
+            player.vx *= damp;
+            player.vy *= damp;
+          } else {
+            // Within slack: nudge forward to keep motion smooth
+            player.x += baseFwd * dt;
+          }
+
+          // Simplified, arcade-like swing assist: holding = pumping
+          {
+            // Tangent at current rope angle
+            const rx2 = player.x - h.x;
+            const ry2 = player.y - h.y;
+            const r2 = Math.hypot(rx2, ry2) || 0.0001;
+            const nx2 = rx2 / r2,
+              ny2 = ry2 / r2; // radial
+            const tx = -ny2,
+              ty = nx2; // tangential
+
+            // Direction of current swing (sign of tangential velocity)
+            const vTan = player.vx * tx + player.vy * ty;
+
+            if (input.down) {
+              // Consistent tangential boost, clearly noticeable
+              // Early-game gets a bit more, then normalizes
+              const boost = 0.08 + 0.04 * t; // 0.12 early -> 0.08 later
+              let dir = Math.sign(vTan);
+              if (dir === 0) {
+                // If nearly still, bias towards forward motion
+                dir = tx * (CONFIG.player.forwardSpeed > 0 ? 1 : -1) >= 0 ? 1 : -1;
+              }
+              player.vx += tx * boost * dir;
+              player.vy += ty * boost * dir;
+            }
+          }
+        } else {
+          // Not attached: free flight with gentle drag and base forward drift
+          player.vx += 0.0; // no horizontal accel, keep momentum
+          player.x += (player.vx + baseFwd) * dt;
+          player.y += player.vy * dt;
+          player.vx *= CONFIG.gameplay.airDrag;
+          player.vy *= CONFIG.gameplay.airDrag;
+        }
+
+        // Fail if falls below path
+        if (player.y - player.radius > CONFIG.gameplay.groundY + 10) {
+          endGame();
+        }
+
+        // Attach if holding
+        if (input.down && !gameOver) {
+          tryAttach();
+        }
+        // Decay drag impulse gradually (for wheel/scroll bursts)
+        input.drag *= 0.94; // slower decay so pumping feels more rewarding
+      }
+
+      function camera(dt) {
+        // Follow player's x smoothly
+        const target = player.x - W * 0.35; // keep player left third
+        cameraX += (target - cameraX) * CONFIG.gameplay.cameraFollow;
+        ensureHooksAhead(600);
+
+        // Distance score = camera lead or player x; use player x for clarity
+        distance = Math.max(0, player.x / 10); // 10 px ~ 1 m (whole integers shown)
+      }
+
+      function loop(ts) {
+        if (!gameStarted) return;
+        const dt = 1; // fixed step for stable feel
+
+        physics(dt);
+        camera(dt);
+        drawFrame();
+        updateUI();
+
+        if (!gameOver) requestAnimationFrame(loop);
+      }
+
+      function drawFrame() {
+        const bg = CONFIG.colors.background;
+        const groundC = CONFIG.colors.ground;
+        const pathC = CONFIG.colors.path;
+
+        // Clear
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        // World to screen helper
+        const toScreenX = (wx) => Math.round(wx - cameraX);
+
+        // Ground/path
+        const gy = CONFIG.gameplay.groundY;
+        ctx.fillStyle = groundC;
+        ctx.fillRect(0, gy, W, H - gy);
+
+        // Path line
+        ctx.strokeStyle = pathC;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(W, gy);
+        ctx.stroke();
+
+        // Hooks
+        ctx.fillStyle = CONFIG.colors.hook;
+        for (let i = 0; i < worldHooks.length; i++) {
+          const h = worldHooks[i];
+          const sx = toScreenX(h.x);
+          if (sx < -40) continue;
+          if (sx > W + 40) break;
+          ctx.beginPath();
+          ctx.arc(sx, h.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Rope
+        if (player.attached && worldHooks[player.hookIndex]) {
+          const h = worldHooks[player.hookIndex];
+          ctx.strokeStyle = CONFIG.colors.rope;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(toScreenX(h.x), h.y);
+          ctx.lineTo(toScreenX(player.x), player.y);
+          ctx.stroke();
+        }
+
+        // Player (minimalist stickman: head + body line)
+        const px = toScreenX(player.x);
+        const py = player.y;
+
+        // Head
+        ctx.fillStyle = CONFIG.colors.player;
+        ctx.beginPath();
+        ctx.arc(px, py - player.radius, player.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Body line
+        ctx.strokeStyle = CONFIG.colors.player;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(px, py - player.radius);
+        ctx.lineTo(px, py + player.radius * 1.6);
+        ctx.stroke();
+
+        if (CONFIG.ui.showGrid) drawGrid();
+      }
+
+      function drawGrid() {
+        ctx.save();
+        ctx.strokeStyle = "rgba(0,0,0,0.05)";
+        ctx.lineWidth = 1;
+        for (let x = -(cameraX % 50); x < W; x += 50) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, H);
+          ctx.stroke();
+        }
+        for (let y = 0; y < H; y += 50) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function clamp(v, a, b) {
+        return Math.max(a, Math.min(b, v));
+      }
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+      function rand(a, b) {
+        return a + Math.random() * (b - a);
+      }
+
+      function showStart() {
+        document.getElementById("startOverlay").style.display = "";
+      }
+
+      window.addEventListener("load", () => {
+        setup();
+        showStart();
+      });
+
+      // Expose to Farcade editor live updates (optional)
+      window.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "UPDATE_CONFIG") {
+          window.onConfigUpdate?.(event.data.config);
+        }
+      });
+    </script>
+  </body>
+</html>
