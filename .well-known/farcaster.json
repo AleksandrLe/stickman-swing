@@ -1,0 +1,22 @@
+{
+  "version": "1",
+  "name": "Stickman Swing",
+  "description": "Tap & hold to swing from hook to hook. Go as far as you can!",
+  "iconUrl": "https://stickman-swing.vercel.app/icon.png",
+  "screenshotUrls": [
+    "https://stickman-swing.vercel.app/screenshot_1.png",
+    "https://stickman-swing.vercel.app/screenshot_2.png"
+  ],
+  "primaryUrl": "https://stickman-swing.vercel.app/",
+  "web": {
+    "launchUrl": "https://stickman-swing.vercel.app/",
+    "categories": ["game"]
+  },
+  "miniapp": {
+    "accountAssociation": {
+      "header": "",
+      "payload": "",
+      "signature": ""
+    }
+  }
+}
